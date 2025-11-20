@@ -5,6 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -19,6 +20,40 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb' }));
 
+// ===== JWT / Auth admin =====
+
+const generateToken = (payload) => {
+  const secret = process.env.JWT_SECRET || 'dev-secret';
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+
+  return jwt.sign(payload, secret, { expiresIn });
+};
+
+const authAdmin = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token manquant' });
+  }
+
+  try {
+    const secret = process.env.JWT_SECRET || 'dev-secret';
+    const decoded = jwt.verify(token, secret);
+
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Accès refusé' });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token invalide ou expiré' });
+  }
+};
+
+// ===== Fichiers / uploads =====
+
 // Créer le dossier uploads s'il n'existe pas
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -31,7 +66,7 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
@@ -51,7 +86,7 @@ const upload = multer({
       'audio/wav',
       'audio/webm'
     ];
-    
+
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -60,7 +95,9 @@ const upload = multer({
   }
 });
 
-// Schéma MongoDB
+// ===== Schémas MongoDB =====
+
+// Médias
 const mediaSchema = new mongoose.Schema({
   filename: String,
   originalName: String,
@@ -81,10 +118,36 @@ const mediaSchema = new mongoose.Schema({
 
 const Media = mongoose.model('Media', mediaSchema);
 
-// Connexion MongoDB
+// Articles
+const articleSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  slug: { type: String, required: true, unique: true },
+  excerpt: { type: String, default: '' },
+  content: { type: String, default: '' },
+  thumbnailUrl: { type: String, default: '' },
+  tags: [{ type: String }],
+  published: { type: Boolean, default: false },
+  publishedAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date }
+});
+
+articleSchema.pre('save', function (next) {
+  this.updatedAt = new Date();
+  if (this.published && !this.publishedAt) {
+    this.publishedAt = new Date();
+  }
+  next();
+});
+
+const Article = mongoose.model('Article', articleSchema);
+
+// ===== Connexion MongoDB =====
+
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://user:password@cluster.mongodb.net/arthur-site';
+    const mongoUri =
+      process.env.MONGODB_URI || 'mongodb://localhost:27017/arthur-site';
     await mongoose.connect(mongoUri);
     console.log('✓ MongoDB connecté');
   } catch (error) {
@@ -93,18 +156,47 @@ const connectDB = async () => {
   }
 };
 
-// Routes
+// ===== Routes =====
 
-// Upload de fichier
+// Auth admin (login, retourne un JWT)
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+
+  const adminUser = process.env.ADMIN_USERNAME;
+  const adminPass = process.env.ADMIN_PASSWORD;
+
+  if (!adminUser || !adminPass) {
+    return res
+      .status(500)
+      .json({ error: 'Configuration admin manquante' });
+  }
+
+  if (username !== adminUser || password !== adminPass) {
+    return res.status(401).json({ error: 'Identifiants invalides' });
+  }
+
+  const token = generateToken({ role: 'admin', username: adminUser });
+
+  res.json({
+    success: true,
+    token
+  });
+});
+
+// Upload de fichier (image / vidéo / audio)
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Aucun fichier uploadé' });
     }
 
-    const fileType = req.file.mimetype.startsWith('image/') ? 'image' :
-                     req.file.mimetype.startsWith('video/') ? 'video' :
-                     req.file.mimetype.startsWith('audio/') ? 'audio' : 'unknown';
+    const fileType = req.file.mimetype.startsWith('image/')
+      ? 'image'
+      : req.file.mimetype.startsWith('video/')
+      ? 'video'
+      : req.file.mimetype.startsWith('audio/')
+      ? 'audio'
+      : 'unknown';
 
     const media = new Media({
       filename: req.file.filename,
@@ -138,7 +230,7 @@ app.get('/api/media', async (req, res) => {
   try {
     const type = req.query.type; // 'image', 'video', 'audio'
     const query = type ? { type } : {};
-    
+
     const media = await Media.find(query).sort({ uploadedAt: -1 });
     res.json(media);
   } catch (error) {
@@ -146,14 +238,14 @@ app.get('/api/media', async (req, res) => {
   }
 });
 
-// Récupérer un média par ID
+// Récupérer un média par ID (fichier)
 app.get('/api/media/:id', async (req, res) => {
   try {
     const media = await Media.findById(req.params.id);
     if (!media) {
       return res.status(404).json({ error: 'Média non trouvé' });
     }
-    
+
     const filePath = path.join(uploadsDir, media.filename);
     res.sendFile(filePath);
   } catch (error) {
@@ -161,7 +253,7 @@ app.get('/api/media/:id', async (req, res) => {
   }
 });
 
-// Récupérer les infos d'un média
+// Récupérer les infos d'un média (métadonnées)
 app.get('/api/media-info/:id', async (req, res) => {
   try {
     const media = await Media.findById(req.params.id);
@@ -175,33 +267,111 @@ app.get('/api/media-info/:id', async (req, res) => {
 });
 
 // Supprimer un média
-app.delete('/api/media/:id', async (req, res) => {
+app.delete('/api/media/:id', authAdmin, async (req, res) => {
   try {
     const media = await Media.findByIdAndDelete(req.params.id);
     if (!media) {
       return res.status(404).json({ error: 'Média non trouvé' });
     }
-    
+
     const filePath = path.join(uploadsDir, media.filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-    
+
     res.json({ success: true, message: 'Média supprimé' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Health check
+// ===== Routes Articles =====
+
+// Liste publique des articles publiés
+app.get('/api/articles', async (req, res) => {
+  try {
+    const articles = await Article.find({ published: true })
+      .sort({ publishedAt: -1, createdAt: -1 })
+      .select('title slug excerpt thumbnailUrl tags publishedAt createdAt');
+
+    res.json(articles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Article par slug (public si publié)
+app.get('/api/articles/:slug', async (req, res) => {
+  try {
+    const article = await Article.findOne({
+      slug: req.params.slug,
+      published: true
+    });
+
+    if (!article) {
+      return res.status(404).json({ error: 'Article non trouvé' });
+    }
+
+    res.json(article);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Création d’un article (admin seulement)
+app.post('/api/articles', authAdmin, async (req, res) => {
+  try {
+    const {
+      title,
+      slug,
+      excerpt,
+      content,
+      thumbnailUrl,
+      tags,
+      published
+    } = req.body;
+
+    const article = new Article({
+      title,
+      slug,
+      excerpt,
+      content,
+      thumbnailUrl,
+      tags: Array.isArray(tags)
+        ? tags
+        : tags
+        ? String(tags)
+            .split(',')
+            .map((t) => t.trim())
+        : [],
+      published: !!published
+    });
+
+    await article.save();
+
+    res.status(201).json({
+      success: true,
+      article
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Slug déjà utilisé' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== Health check =====
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Serveur en ligne' });
 });
 
-// Servir les fichiers statiques
+// Servir les fichiers statiques d’uploads
 app.use('/uploads', express.static(uploadsDir));
 
-// Démarrer le serveur
+// ===== Démarrage serveur =====
+
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
@@ -211,7 +381,7 @@ const startServer = async () => {
   });
 };
 
-startServer().catch(error => {
+startServer().catch((error) => {
   console.error('Erreur au démarrage:', error);
   process.exit(1);
 });

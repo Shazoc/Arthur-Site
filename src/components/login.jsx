@@ -9,11 +9,11 @@ const Login = () => {
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
-    const success = login(email, password)
+    const success = await login(email, password)
     if (success) {
       navigate('/add-article')
     } else {

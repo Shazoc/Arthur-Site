@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { AuthContext } from './AuthContext'
 
+const API_BASE_URL = 'http://51.77.221.168/api'
+
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState(null)
@@ -19,24 +21,46 @@ export const AuthProvider = ({ children }) => {
     setLoading(false)
   }, [])
 
-  const login = (email, password) => {
-    if (email === 'arthur@example.com' && password === 'password123') {
-      const newToken = 'token_' + Math.random().toString(36).substr(2, 9)
+  const login = async (email, password) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          // le backend ne regarde pas l'email, juste username/password env
+          username: 'arthur',
+          password
+        })
+      })
+
+      if (!res.ok) {
+        return false
+      }
+
+      const data = await res.json()
+      if (!data.token) {
+        return false
+      }
+
       const userData = {
         email,
         name: 'Arthur',
         id: 1
       }
 
-      localStorage.setItem('authToken', newToken)
+      localStorage.setItem('authToken', data.token)
       localStorage.setItem('authUser', JSON.stringify(userData))
 
-      setToken(newToken)
+      setToken(data.token)
       setUser(userData)
       setIsAuthenticated(true)
       return true
+    } catch (e) {
+      console.error('Erreur login:', e)
+      return false
     }
-    return false
   }
 
   const logout = () => {
