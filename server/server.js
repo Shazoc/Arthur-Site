@@ -114,9 +114,9 @@ const mediaSchema = new mongoose.Schema({
   },
   description: String,
   tags: [String]
-});
+})
 
-const Media = mongoose.model('Media', mediaSchema);
+const Media = mongoose.model('Media', mediaSchema)
 
 // Articles
 const articleSchema = new mongoose.Schema({
@@ -126,21 +126,103 @@ const articleSchema = new mongoose.Schema({
   content: { type: String, default: '' },
   thumbnailUrl: { type: String, default: '' },
   tags: [{ type: String }],
+  mediaType: { type: String, enum: ['image', 'audio', 'video'], default: 'image' },
+  mediaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Media' }],
   published: { type: Boolean, default: false },
   publishedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date }
-});
+})
 
 articleSchema.pre('save', function (next) {
-  this.updatedAt = new Date();
+  this.updatedAt = new Date()
   if (this.published && !this.publishedAt) {
-    this.publishedAt = new Date();
+    this.publishedAt = new Date()
   }
-  next();
-});
+  next()
+})
 
-const Article = mongoose.model('Article', articleSchema);
+const Article = mongoose.model('Article', articleSchema)
+
+// ===== Routes Articles =====
+
+// Liste publique des articles publiés
+app.get('/api/articles', async (req, res) => {
+  try {
+    const articles = await Article.find({ published: true })
+      .sort({ publishedAt: -1, createdAt: -1 })
+      .select('title slug excerpt thumbnailUrl tags mediaType mediaIds publishedAt createdAt')
+
+    res.json(articles)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Article par slug (public si publié)
+app.get('/api/articles/:slug', async (req, res) => {
+  try {
+    const article = await Article.findOne({
+      slug: req.params.slug,
+      published: true
+    })
+
+    if (!article) {
+      return res.status(404).json({ error: 'Article non trouvé' })
+    }
+
+    res.json(article)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Création d’un article (admin seulement)
+app.post('/api/articles', authAdmin, async (req, res) => {
+  try {
+    const {
+      title,
+      slug,
+      excerpt,
+      content,
+      thumbnailUrl,
+      tags,
+      mediaType,
+      mediaIds,
+      published
+    } = req.body
+
+    const article = new Article({
+      title,
+      slug,
+      excerpt,
+      content,
+      thumbnailUrl,
+      mediaType: mediaType || 'image',
+      mediaIds: Array.isArray(mediaIds) ? mediaIds : [],
+      tags: Array.isArray(tags)
+        ? tags
+        : tags
+        ? String(tags)
+            .split(',')
+            .map((t) => t.trim())
+        : [],
+      published: !!published
+    })
+
+    await article.save()
+
+    res.status(201).json({
+      success: true,
+      article
+    })
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Slug déjà utilisé' })
+    }
+    res.status(500).json({ error: error.message })
+  }
+})
 
 // ===== Connexion MongoDB =====
 
@@ -360,6 +442,30 @@ app.post('/api/articles', authAdmin, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Liste complète des articles (admin uniquement)
+app.get('/api/admin/articles', authAdmin, async (req, res) => {
+  try {
+    const articles = await Article.find({})
+      .sort({ createdAt: -1 })
+    res.json(articles)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Suppression d’un article (admin uniquement)
+app.delete('/api/articles/:id', authAdmin, async (req, res) => {
+  try {
+    const article = await Article.findByIdAndDelete(req.params.id)
+    if (!article) {
+      return res.status(404).json({ error: 'Article non trouvé' })
+    }
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
 
 // ===== Health check =====
 
