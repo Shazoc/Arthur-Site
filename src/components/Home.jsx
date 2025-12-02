@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import arthurPhoto from '../photo/arthur.JPG'
+import arthurPhoto from '../photo/arthur.jpg'
 import { getArticles } from '../ArticlesService'
 
 const Home = () => {
