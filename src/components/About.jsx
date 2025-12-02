@@ -1,3 +1,5 @@
+import arthurPhoto from '../photo/arthur.JPG'
+
 const About = () => {
   return (
     <div className="space-y-12">
@@ -12,23 +14,28 @@ const About = () => {
       {/* Bio Section */}
       <section className="grid md:grid-cols-2 gap-12 items-center">
         <div>
-          <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl p-12 h-96 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-40 h-40 bg-blue-300 rounded-full mx-auto mb-6"></div>
-              <p className="text-gray-600">Photo de profil</p>
-            </div>
-          </div>
+           <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl p-12 h-[28rem] flex items-center justify-center">
+                      <div className="text-center">
+                        <img
+                          src={arthurPhoto}
+                          alt="Photo de profil d'Arthur"
+                          className="w-64 h-64 rounded-full object-cover mx-auto mb-6 shadow-lg"
+                        />
+                      </div>
+                    </div>
         </div>
         <div className="space-y-6">
-          <p className="text-lg text-gray-600 leading-relaxed">
-            Je suis Arthur, journaliste d'investigation avec plus de 10 ans d'expérience dans le domaine du journalisme d'enquête et du reportage. Ma passion pour la vérité et la justice m'a mené à couvrir certaines des histoires les plus importantes de notre époque.
-          </p>
-          <p className="text-lg text-gray-600 leading-relaxed">
-            Spécialisé dans les investigations approfondies, les reportages de terrain et les analyses critiques, j'ai contribué à dévoiler des schémas de corruption, à mettre en lumière les injustices sociales et à amplifier les voix des communautés oubliées.
-          </p>
-          <p className="text-lg text-gray-600 leading-relaxed">
-            Mon travail a été récompensé par plusieurs prix prestigieux et a conduit à des changements politiques concrets. Je crois fermement que le journalisme est un outil puissant pour le changement social.
-          </p>
+          <p className="text-lg text-gray-600 leading-relaxed space-y-4">
+  <span className="block">
+    Je m’appelle Arthur CAMUS, journaliste indépendant. Je suis passionné de culture (rap, mode, cinéma) et j’ai envie d’en parler autant que possible.
+  </span>
+  <span className="block">
+    Il y a quelques années, j’ai compris qu’être journaliste spécialisé, c’était simplement raconter ce qu’on aime. Peu importe mes passions d’aujourd’hui ou celles de demain : avec le journalisme, je peux toujours les explorer, les comprendre et les partager.
+  </span>
+  <span className="block">
+    Articles, photos, vidéos, streams Twitch… j’expérimente tous les formats pour parler de ce qui me fait vibrer, sans filtres et sans limites, tout seul ou avec d’autres personnes.
+  </span>
+</p>
         </div>
       </section>
 
@@ -41,12 +48,8 @@ const About = () => {
             <h3 className="text-xl font-bold text-gray-900 mb-4">Formation</h3>
             <ul className="space-y-4">
               <li>
-                <p className="font-semibold text-gray-900">Master en Journalisme d'Investigation</p>
-                <p className="text-gray-600">Université de Paris | 2012</p>
-              </li>
-              <li>
-                <p className="font-semibold text-gray-900">Licence en Sciences Politiques</p>
-                <p className="text-gray-600">Université de Lyon | 2010</p>
+                <p className="font-semibold text-gray-900">Centre nantais du journalisme</p>
+                <p className="text-gray-600">CNJ | 2023 - 2026</p>
               </li>
             </ul>
           </div>
@@ -58,9 +61,10 @@ const About = () => {
         <h2 className="text-3xl font-bold text-gray-900">Compétences</h2>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { title: 'Investigation', items: ['Recherche approfondie', 'Analyse de données', 'Entrevues'] },
-            { title: 'Reportage', items: ['Reportage de terrain', 'Photojournalisme', 'Vidéo'] },
-            { title: 'Communication', items: ['Rédaction', 'Podcast', 'Réseaux sociaux'] },
+            { title: 'Ecriture', items: ['Recherche approfondie', 'Analyse', 'Interview'] },
+            { title: 'Reportage', items: ['Terrain', 'Photojournalisme', 'Tournage de vidéo'] },
+            { title: 'Réseaux Sociaux :', items: ['Twitch/YouTube', 'TikTok/Instagram'] },
+            { title: ' Podcast :', items: ['Débat', 'Discussion'] },
           ].map((skill) => (
             <div key={skill.title} className="border border-gray-200 rounded-lg p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">{skill.title}</h3>
