@@ -24,9 +24,9 @@ app.use(express.urlencoded({ limit: '50mb' }));
 
 const generateToken = (payload) => {
   const secret = process.env.JWT_SECRET || 'dev-secret';
-  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
 
-  return jwt.sign(payload, secret, { expiresIn });
+  // On force une valeur sûre pour éviter tout problème d'environnement
+  return jwt.sign(payload, secret, { expiresIn: '7d' });
 };
 
 const authAdmin = (req, res, next) => {
