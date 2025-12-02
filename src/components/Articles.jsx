@@ -1,24 +1,47 @@
 import { useState, useEffect } from 'react'
-import { getArticles, deleteArticle } from '../ArticlesService'
+import { getArticles } from '../ArticlesService'
 import { useAuth } from '../useAuth'
 import { Link, useNavigate } from 'react-router-dom'
 
 const Articles = () => {
   const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    setArticles(getArticles())
+    const load = async () => {
+      try {
+        setLoading(true)
+        setError('')
+        const data = await getArticles()
+        setArticles(data)
+      } catch (e) {
+        console.error(e)
+        setError('Impossible de charger les articles pour le moment.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
   }, [])
 
-  const handleDelete = (id) => {
-    deleteArticle(id)
-    setArticles(getArticles())
+  const handleReadMore = (slug) => {
+    navigate(`/articles/${slug}`)
   }
 
-  const handleReadMore = (id) => {
-    navigate(`/articles/${id}`)
+  if (loading) {
+    return <div className="text-center py-12">Chargement des articles...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600">{error}</p>
+      </div>
+    )
   }
 
   return (
@@ -43,19 +66,21 @@ const Articles = () => {
       {articles.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-600 text-lg">Aucun article pour le moment.</p>
-          {isAuthenticated && (
-            <Link to="/add-article" className="text-blue-600 font-semibold hover:text-blue-700">
-              Créer le premier article
-            </Link>
-          )}
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-8">
           {articles.map((article) => (
-            <article key={article.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-xl transition-shadow bg-white">
+            <article
+              key={article._id}
+              className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-xl transition-shadow bg-white"
+            >
               <div className="bg-gray-200 h-64 overflow-hidden flex items-center justify-center">
-                {article.cover ? (
-                  <img src={`data:image/jpeg;base64,${article.cover}`} alt={article.title} className="w-full h-full object-cover" />
+                {article.thumbnailUrl ? (
+                  <img
+                    src={article.thumbnailUrl}
+                    alt={article.title}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <div className="text-gray-400 text-center">
                     <p className="text-lg">Pas de couverture</p>
@@ -65,15 +90,17 @@ const Articles = () => {
               <div className="p-8">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                    {article.category}
+                    {article.tags && article.tags.length > 0
+                      ? article.tags.join(', ')
+                      : 'Article'}
                   </span>
-                  <span className="text-sm text-gray-500">{article.date}</span>
+                  {article.publishedAt && (
+                    <span className="text-sm text-gray-500">
+                      {new Date(article.publishedAt).toLocaleDateString('fr-FR')}
+                    </span>
+                  )}
                 </div>
-                {article.mediaType && (
-                  <p className="text-xs text-gray-500 mb-3">
-                    {article.mediaType === 'photo' ? '📷 Photo' : article.mediaType === 'video' ? '🎞 Vidéo' : '🎙 Audio'}
-                  </p>
-                )}
+
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">
                   {article.title}
                 </h3>
@@ -82,19 +109,11 @@ const Articles = () => {
                 </p>
                 <div className="flex justify-between items-center">
                   <button
-                    onClick={() => handleReadMore(article.id)}
+                    onClick={() => handleReadMore(article.slug)}
                     className="text-blue-600 font-semibold hover:text-blue-700 transition-colors"
                   >
                     Lire la suite →
                   </button>
-                  {isAuthenticated && (
-                    <button
-                      onClick={() => handleDelete(article.id)}
-                      className="text-red-600 hover:text-red-700 text-sm font-semibold"
-                    >
-                      Supprimer
-                    </button>
-                  )}
                 </div>
               </div>
             </article>
