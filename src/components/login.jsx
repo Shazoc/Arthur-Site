@@ -71,12 +71,6 @@ const Login = () => {
             Se connecter
           </button>
         </form>
-
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-gray-600 mb-2"><strong>Identifiants de test:</strong></p>
-          <p className="text-sm text-gray-600">Email: arthur@example.com</p>
-          <p className="text-sm text-gray-600">Mot de passe: password123</p>
-        </div>
       </div>
     </div>
   )
