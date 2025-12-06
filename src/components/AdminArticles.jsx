@@ -110,7 +110,7 @@ const AdminArticles = () => {
                       : '-'}
                   </td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    {/* bouton éditer plus tard */}
+                    {/* bouton éditer à ajouter plus tard */}
                     <button
                       onClick={() => handleDelete(article._id)}
                       className="px-3 py-1 text-xs font-semibold text-white bg-red-600 rounded hover:bg-red-700"

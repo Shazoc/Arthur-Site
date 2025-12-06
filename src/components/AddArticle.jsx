@@ -93,34 +93,94 @@ const AddArticle = () => {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const uploadMedias = async () => {
+    const filesInput = document.getElementById('media')
+    const files = filesInput?.files
+
+    if (!files || files.length === 0) {
+      return []
+    }
+
+    const uploadedIds = []
+
+    for (let i = 0; i < files.length; i++) {
+      const fd = new FormData()
+      fd.append('file', files[i])
+      fd.append('description', formData.title || '')
+      fd.append('tags', formData.category || '')
+
+      const res = await fetch('http://51.77.221.168/api/upload', {
+        method: 'POST',
+        body: fd
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`Erreur upload media: ${res.status} ${text}`)
+      }
+
+      const data = await res.json()
+      if (data.media && data.media.id) {
+        uploadedIds.push(data.media.id)
+      }
+    }
+
+    return uploadedIds
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
-    addArticle({
+    let mediaIds = []
+    try {
+      mediaIds = await uploadMedias()
+    } catch (err) {
+      console.error(err)
+      alert('Erreur lors de l’upload des médias : ' + err.message)
+      return
+    }
+
+    const slug = formData.title
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '')
+
+    const payload = {
       title: formData.title,
-      category: formData.category,
+      slug,
       excerpt: formData.excerpt,
       content: formData.content,
-      mediaType: formData.mediaType,
-      cover: coverImage
-    }, previews)
+      tags: [formData.category],
+      thumbnailUrl: coverPreview || '',
+      mediaType: formData.mediaType === 'audio' ? 'audio' : 'image',
+      mediaIds,
+      published: true
+    }
 
-    setSuccess(true)
-    setTimeout(() => {
-      setFormData({
-        title: '',
-        category: 'Investigation',
-        excerpt: '',
-        content: '',
-        media: null,
-        mediaType: 'photo'
-      })
-      setPreviews([])
-      setCoverImage(null)
-      setCoverPreview(null)
-      setSuccess(false)
-      navigate('/articles')
-    }, 2000)
+    try {
+      await addArticle(payload)
+
+      setSuccess(true)
+      setTimeout(() => {
+        setFormData({
+          title: '',
+          category: 'Investigation',
+          excerpt: '',
+          content: '',
+          media: null,
+          mediaType: 'photo'
+        })
+        setPreviews([])
+        setCoverImage(null)
+        setCoverPreview(null)
+        setSuccess(false)
+        navigate('/articles')
+      }, 2000)
+    } catch (err) {
+      console.error(err)
+      alert('Erreur lors de la création de l’article : ' + err.message)
+    }
   }
 
   return (
@@ -229,13 +289,13 @@ const AddArticle = () => {
 
         <div>
           <label htmlFor="media" className="block text-sm font-semibold text-gray-900 mb-2">
-            Télécharger des fichiers {formData.mediaType === 'photo' ? 'images' : formData.mediaType === 'video' ? 'vidéos' : 'fichiers audio'} (plusieurs fichiers acceptés)
+            Télécharger des fichiers {formData.mediaType === 'photo' ? 'images' : 'fichiers audio'} (plusieurs fichiers acceptés)
           </label>
           <input
             type="file"
             id="media"
             onChange={handleFileChange}
-            accept={formData.mediaType === 'photo' ? 'image/*' : formData.mediaType === 'video' ? 'video/*' : 'audio/*'}
+            accept={formData.mediaType === 'photo' ? 'image/*' : 'audio/*'}
             multiple
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
@@ -245,7 +305,9 @@ const AddArticle = () => {
         {previews && previews.length > 0 && (
           <div className="border-2 border-dashed border-blue-300 rounded-lg p-6 bg-blue-50">
             <div className="flex justify-between items-center mb-4">
-              <p className="text-sm font-semibold text-gray-900">Aperçu des médias ({previews.length} fichier{previews.length > 1 ? 's' : ''}):</p>
+              <p className="text-sm font-semibold text-gray-900">
+                Aperçu des médias ({previews.length} fichier{previews.length > 1 ? 's' : ''}):
+              </p>
               <button
                 type="button"
                 onClick={() => document.getElementById('media').click()}
@@ -256,7 +318,10 @@ const AddArticle = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {previews.map((preview, index) => (
-                <div key={index} className="rounded-lg overflow-hidden bg-white border border-gray-200 relative group">
+                <div
+                  key={index}
+                  className="rounded-lg overflow-hidden bg-white border border-gray-200 relative group"
+                >
                   {formData.mediaType === 'photo' && (
                     <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-32 object-cover" />
                   )}

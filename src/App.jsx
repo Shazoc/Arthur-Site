@@ -11,6 +11,7 @@ import AddArticle from './components/AddArticle'
 import { useAuth } from './useAuth'
 import AddProject from './components/AddProject'
 import ProjectDetail from './components/ProjectDetail'
+import AdminArticles from './components/AdminArticles'
 
 function App() {
   const { isAuthenticated, loading } = useAuth()
@@ -26,7 +27,8 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/articles" element={<Articles />} />
-          <Route path="/articles/:id" element={<ArticleDetail />} />
+          <Route path="/articles/:slug" element={<ArticleDetail />} />
+          <Route path="/admin/articles" element={isAuthenticated ? <AdminArticles /> : <Navigate to="/login" />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/add-article" element={isAuthenticated ? <AddArticle /> : <Navigate to="/login" />} />
